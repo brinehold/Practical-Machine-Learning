@@ -1,0 +1,65 @@
+---
+title: "Prediction Assignment"
+author: "Brett Rinehold"
+date: "March 5, 2016"
+output: html_document
+---
+This report will describe the analysis for the final project for the Practical Machine Learning Course. The object object of this assignment is to predict what "classe" people fall into by cross validating the data.
+
+## Set-up
+```{r}
+options(warn = -1)
+library(caret)
+library(randomForest)
+set.seed(7)
+```
+
+
+## Load Data and Scrub the Data
+For this step we will load in the data and treat the "#DIV/0!" strings as NAs. The next step is to convert the "data" columns into numeric values. Finally we will only look at columns that have a 100% completion rate and subset the columns we are interested in.
+```{r}
+trainData <- read.csv("pml-training.csv", na.strings = "#DIV/0!")
+for(ii in c(8:ncol(trainData)-1)) { 
+        trainData[,ii] = as.numeric(as.character(trainData[,ii]))
+}
+colAdj <- colnames(trainData[colSums(is.na(trainData)) == 0])[-(1:7)]
+newData <- trainData[colAdj]
+```
+
+## Split data into training and test set
+The data is ready to be split into training and test sets using a 75% split
+```{r}
+splitData <- createDataPartition(y = newData$classe, p = 0.75, list = FALSE)
+train <- newData[splitData,]
+test <- newData[-splitData,]
+```
+
+## Implement Random Forest Algorithm
+Create the random forest model. I settled on 500 trees as it gave the best results without being too big that would eat up processing time. 
+```{r}
+model <- randomForest(train[-ncol(train)], train$classe, ntree=500)
+```
+
+## Run prediction models on training and test data
+```{r}
+predictTrain <- predict(model, newdata = train)
+confusionMatrix(predictTrain, train$classe)
+
+predictTest <- predict(model, newdata = test)
+confusionMatrix(predictTest, test$classe)
+```
+From the confusion matrix, you can see the the model has a 99% accuracy and very good sensitivity and specificty values on the test data set. From here we will run the model on the actual test dataset.
+
+## Run Model on Test DataSet
+```{r}
+testData <- read.csv("pml-testing.csv", na.strings = "#DIV/0!")
+for(ii in c(8:ncol(trainData))) { 
+        testData[,ii] = as.numeric(as.character(testData[,ii]))
+}
+colAdj <- colnames(testData[colSums(is.na(testData)) == 0])[-(1:7)]
+newtestData <- testData[colAdj]
+
+finalPredict <- predict(model, newdata = newtestData)
+finalPredict
+```
+Using the model on the final test data set the results are outputted and yielded a perfect (20/20) prediction.
